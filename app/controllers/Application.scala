@@ -68,12 +68,15 @@ class Stats extends Actor {
       reqCounter.set(0)
       timeCounter.set(0)
     }
+    if (timeCounter.get() < 0L) {
+      reqCounter.set(0)
+      timeCounter.set(0)
+    }
   }
 
   def receive = {
     case Hit(time) => {
       reset(reqCounter.compareAndSet(Long.MaxValue, 0L))
-      reset(timeCounter.compareAndSet(Long.MaxValue, 0L))
       reqCounter.incrementAndGet()
       timeCounter.addAndGet(time)
       if (Application.printStats && reqCounter.get() % 2000 == 0) Logger.info("average hit : %s ns".format(timeCounter.get() / reqCounter.get()))
