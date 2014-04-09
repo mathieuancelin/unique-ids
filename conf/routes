@@ -1,0 +1,3 @@
+GET     /nextId.json    controllers.Application.nextIdAsJson
+GET     /nextId         controllers.Application.nextId
+GET     /stats          controllers.Application.stats
