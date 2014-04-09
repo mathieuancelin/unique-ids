@@ -27,7 +27,7 @@ you can turn stats off from your `application.conf` file
 generator {
     id=42
     stats {
-        enabled=true
+        enabled=false
     }
 }
 ```
