@@ -16,7 +16,6 @@ import scala.concurrent.duration.Duration
 
 object Application extends Controller {
 
-  val printStats = Play.current.configuration.getBoolean("generator.stats.print").getOrElse(false)
   val generatorId = Play.current.configuration.getLong("generator.id").getOrElse(1L)
   val statsEnabled = Play.current.configuration.getBoolean("generator.stats.enabled").getOrElse(true)
   val ref = Akka.system(Play.current).actorOf(Props[Stats]())
@@ -78,12 +77,13 @@ class Stats extends Actor {
       resetIfNeeded()
       reqCounter.incrementAndGet()
       timeCounter.addAndGet(time)
-      if (Application.printStats && reqCounter.get() % 2000 == 0) Logger.info("average hit : %s ns".format(timeCounter.get() / reqCounter.get()))
     }
     case AskStat() => {
       val divideBy = if (reqCounter.get() == 0L) 1L else reqCounter.get()
-      val elapsed = (System.currentTimeMillis() - startTime) / 1000L
-      sender ! StatsResponse(reqCounter.get(), timeCounter.get() / divideBy, reqCounter.get().toDouble / elapsed.toDouble)
+      val elapsed = Option((System.currentTimeMillis() - startTime) / 1000L).getOrElse(0L)
+      val timePerHit = Option(timeCounter.get() / divideBy).getOrElse(0L)
+      val hitPerSec = Option(reqCounter.get().toDouble / elapsed.toDouble).getOrElse(1.0)
+      sender ! StatsResponse( reqCounter.get(), timePerHit, hitPerSec)
     }
     case _ =>
   }
