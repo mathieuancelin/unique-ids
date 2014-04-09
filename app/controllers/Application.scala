@@ -17,31 +17,30 @@ import scala.concurrent.duration.Duration
 object Application extends Controller {
 
   val printStats = Play.current.configuration.getBoolean("generator.stats.print").getOrElse(false)
-  val workerId = Play.current.configuration.getLong("generator.id").getOrElse(1L)
+  val generatorId = Play.current.configuration.getLong("generator.id").getOrElse(1L)
   val statsEnabled = Play.current.configuration.getBoolean("generator.stats.enabled").getOrElse(true)
+  val ref = Akka.system(Play.current).actorOf(Props[Stats]())
 
   private[this] val minus = 1288834974657L
   private[this] val counter = new AtomicLong(-1L)
   private[this] val fmt = Json.format[StatsResponse]
   private[this] implicit val timeout = Timeout(Duration(1, TimeUnit.SECONDS))
 
-  val ref = Akka.system(Play.current).actorOf(Props[Stats]())
-
-  if (workerId > 1024L) { // 256L, 512L, 1024L
+  if (generatorId > 1024L) { // 256L << 512L << 1024L
     throw new RuntimeException("Worker id can't be larger than 1024")
   }
 
-  def next = synchronized {
+  def next() = synchronized {
     counter.compareAndSet(4095, -1L)  // 4095 << 10L, 8191 << 9L, 16383 << 8L
-    ((System.currentTimeMillis - minus) << 22L) | (workerId << 10L) | counter.incrementAndGet()
+    ((System.currentTimeMillis - minus) << 22L) | (generatorId << 10L) | counter.incrementAndGet()
   }
 
   def nextId = Action.async {
-    Future(Ok(next.toString))
+    Future(Ok(next().toString))
   }
 
   def nextIdAsJson = Action.async {
-    Future(Ok(Json.obj("id" -> next)))
+    Future(Ok(Json.obj("id" -> next())))
   }
 
   def stats = Action.async {
@@ -63,20 +62,20 @@ class Stats extends Actor {
   private[this] val timeCounter = new AtomicLong(0L)
   private[this] val startTime = System.currentTimeMillis()
 
-  def reset(v: Boolean) {
-    if (v) {
-      reqCounter.set(0)
-      timeCounter.set(0)
+  def resetIfNeeded() {
+    if (reqCounter.compareAndSet(Long.MaxValue, 0L)) {
+      reqCounter.set(0L)
+      timeCounter.set(0L)
     }
     if (timeCounter.get() < 0L) {
-      reqCounter.set(0)
-      timeCounter.set(0)
+      reqCounter.set(0L)
+      timeCounter.set(0L)
     }
   }
 
   def receive = {
     case Hit(time) => {
-      reset(reqCounter.compareAndSet(Long.MaxValue, 0L))
+      resetIfNeeded()
       reqCounter.incrementAndGet()
       timeCounter.addAndGet(time)
       if (Application.printStats && reqCounter.get() % 2000 == 0) Logger.info("average hit : %s ns".format(timeCounter.get() / reqCounter.get()))
