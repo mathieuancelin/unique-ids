@@ -1,7 +1,7 @@
 Unique IDs generator
 =====================================
 
-Produce unique IDs (as 64 bits number) that are ordered.
+Produce ordered unique IDs (as 64 bits number). To use it, just run
 
 `curl http://hostname:port/nextId` or `curl http://hostname:port/nextId.json`
 
