@@ -18,6 +18,5 @@ object Global extends GlobalSettings {
       cache.remove(request.id)
       Application.ref ! Hit(System.nanoTime() - start)
     }
-    super.onRequestCompletion(request)
   }
 }

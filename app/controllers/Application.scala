@@ -26,9 +26,7 @@ object Application extends Controller {
   private[this] val fmt = Json.format[StatsResponse]
   private[this] implicit val timeout = Timeout(Duration(1, TimeUnit.SECONDS))
 
-  if (generatorId > 1024L) { // 256L << 512L << 1024L
-    throw new RuntimeException("Worker id can't be larger than 1024")
-  }
+  if (generatorId > 1024L) throw new RuntimeException("Worker id can't be larger than 1024") // 256L << 512L << 1024L
   ref ! ComputeAverage()
 
   def next() = synchronized {
@@ -36,13 +34,9 @@ object Application extends Controller {
     ((System.currentTimeMillis - minus) << 22L) | (generatorId << 10L) | counter.incrementAndGet()
   }
 
-  def nextId = Action.async {
-    Future(Ok(next().toString))
-  }
+  def nextId = Action.async { Future(Ok(next().toString)) }
 
-  def nextIdAsJson = Action.async {
-    Future(Ok(Json.obj("id" -> next())))
-  }
+  def nextIdAsJson = Action.async { Future(Ok(Json.obj("id" -> next()))) }
 
   def stats = Action.async {
     if (statsEnabled) {
