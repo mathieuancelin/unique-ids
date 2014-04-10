@@ -23,6 +23,7 @@ object Application extends Controller {
 
   private[this] val minus = 1288834974657L
   private[this] val counter = new AtomicLong(-1L)
+  private[this] val lastTimestamp = new AtomicLong(-1L)
   private[this] val fmt = Json.format[StatsResponse]
   private[this] implicit val timeout = Timeout(Duration(1, TimeUnit.SECONDS))
 
@@ -30,13 +31,16 @@ object Application extends Controller {
   ref ! ComputeAverage()
 
   def next() = synchronized {
+    val timestamp = System.currentTimeMillis
+    if (timestamp < lastTimestamp.get()) throw new RuntimeException("Clock is running backward. Sorry :-(")
+    lastTimestamp.set(timestamp)
     counter.compareAndSet(4095, -1L)  // 4095 << 10L, 8191 << 9L, 16383 << 8L
-    ((System.currentTimeMillis - minus) << 22L) | (generatorId << 10L) | counter.incrementAndGet()
+    ((timestamp - minus) << 22L) | (generatorId << 10L) | counter.incrementAndGet()
   }
 
-  def nextId = Action.async { Future(Ok(next().toString)) }
+  def nextId = Action.async { Future(Ok(next().toString)).recover { case e => InternalServerError(e.getMessage) } }
 
-  def nextIdAsJson = Action.async { Future(Ok(Json.obj("id" -> next()))) }
+  def nextIdAsJson = Action.async { Future(Ok(Json.obj("id" -> next()))).recover { case e => InternalServerError(e.getMessage) } }
 
   def stats = Action.async {
     if (statsEnabled) {
