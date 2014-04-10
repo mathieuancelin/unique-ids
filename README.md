@@ -26,6 +26,7 @@ Some statistics are available at `http://hostname:port/stats` and will produce s
 }
 ```
 
+you can reset stats with `curl -X DELETE http://hostname:port/stats`
 you can turn stats off from your `application.conf` file
 
 ```
@@ -36,6 +37,7 @@ generator {
     }
 }
 ```
+
 
 Expect something like 2ms to 4ms response time per request and 8k to 10k request per second (with warm JVM)
 
