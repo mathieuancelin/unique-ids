@@ -32,4 +32,6 @@ generator {
 }
 ```
 
+Expect something like 2ms to 4ms response time per request and 8k to 10k request per second (with warm JVM)
+
 highly inspired by https://github.com/twitter/snowflake/
