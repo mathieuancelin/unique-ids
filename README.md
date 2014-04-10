@@ -18,7 +18,12 @@ As these ids are ordered by time, you need to synchronize your nodes clock with 
 Some statistics are available at `http://hostname:port/stats` and will produce something like
 
 ```javascript
-{"totalHits":14640246,"averageTimeNsPerHit":1503000,"averageRequestsPerSec":10843.4}
+{
+    "totalHits":14640246,
+    "averageTimeNsPerHit":1503000,
+    "averageRequestsPerSec":9983.8,
+    "topRequestsPerSec":10843.4
+}
 ```
 
 you can turn stats off from your `application.conf` file
