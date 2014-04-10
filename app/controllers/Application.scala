@@ -2,7 +2,7 @@ package controllers
 
 import play.api._
 import play.api.mvc._
-import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.{AtomicReference, AtomicLong}
 import scala.concurrent.Future
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
@@ -18,6 +18,7 @@ object Application extends Controller {
 
   val generatorId = Play.current.configuration.getLong("generator.id").getOrElse(1L)
   val statsEnabled = Play.current.configuration.getBoolean("generator.stats.enabled").getOrElse(true)
+  val statsEvery = Duration(Play.current.configuration.getMilliseconds("generator.stats.every").getOrElse(5000L), TimeUnit.MILLISECONDS)
   val ref = Akka.system(Play.current).actorOf(Props[Stats]())
 
   private[this] val minus = 1288834974657L
@@ -28,6 +29,7 @@ object Application extends Controller {
   if (generatorId > 1024L) { // 256L << 512L << 1024L
     throw new RuntimeException("Worker id can't be larger than 1024")
   }
+  ref ! ComputeAverage()
 
   def next() = synchronized {
     counter.compareAndSet(4095, -1L)  // 4095 << 10L, 8191 << 9L, 16383 << 8L
@@ -51,15 +53,17 @@ object Application extends Controller {
   }
 }
 
-case class Hit(time: Long)
 case class AskStat()
+case class ComputeAverage()
+case class Hit(time: Long)
 case class StatsResponse(totalHits: Long, averageTimeNsPerHit: Long, averageRequestsPerSec: Double)
 
 class Stats extends Actor {
 
   private[this] val reqCounter = new AtomicLong(0L)
   private[this] val timeCounter = new AtomicLong(0L)
-  private[this] val startTime = System.currentTimeMillis()
+  private[this] val lastCount = new AtomicLong(0L)
+  private[this] val averagePerSec = new AtomicReference[Double](0.0)
 
   def resetIfNeeded() {
     if (reqCounter.compareAndSet(Long.MaxValue, 0L)) {
@@ -73,6 +77,12 @@ class Stats extends Actor {
   }
 
   def receive = {
+    case ComputeAverage() => {
+      val reqs = reqCounter.get()
+      averagePerSec.set((reqs - lastCount.get()).toDouble / Application.statsEvery.toSeconds.toDouble)
+      lastCount.set(reqs)
+      Akka.system(Play.current).scheduler.scheduleOnce(Application.statsEvery, self, ComputeAverage())
+    }
     case Hit(time) => {
       resetIfNeeded()
       reqCounter.incrementAndGet()
@@ -80,10 +90,8 @@ class Stats extends Actor {
     }
     case AskStat() => {
       val divideBy = if (reqCounter.get() == 0L) 1L else reqCounter.get()
-      val elapsed = Option((System.currentTimeMillis() - startTime) / 1000L).getOrElse(0L)
       val timePerHit = Option(timeCounter.get() / divideBy).getOrElse(0L)
-      val hitPerSec = Option(reqCounter.get().toDouble / elapsed.toDouble).getOrElse(1.0)
-      sender ! StatsResponse( reqCounter.get(), timePerHit, hitPerSec)
+      sender ! StatsResponse( reqCounter.get(), timePerHit, averagePerSec.get())
     }
     case _ =>
   }
