@@ -42,6 +42,11 @@ object Application extends Controller {
 
   def nextIdAsJson = Action.async { Future(Ok(Json.obj("id" -> next()))).recover { case e => InternalServerError(e.getMessage) } }
 
+  def resetStats = Action.async {
+    if (statsEnabled) ref ! ResetStats()
+    Future.successful(Ok)
+  }
+
   def stats = Action.async {
     if (statsEnabled) {
       (ref ? AskStat()).mapTo[StatsResponse].map(res => Ok(Json.toJson(res)(fmt)))
@@ -52,6 +57,7 @@ object Application extends Controller {
 }
 
 case class AskStat()
+case class ResetStats()
 case class ComputeAverage()
 case class Hit(time: Long)
 case class StatsResponse(totalHits: Long, averageTimeNsPerHit: Long, averageRequestsPerSec: Double, topRequestsPerSec: Double)
@@ -76,11 +82,18 @@ class Stats extends Actor {
   }
 
   def receive = {
+    case ResetStats() => {
+      reqCounter.set(0L)
+      timeCounter.set(0L)
+      lastCount.set(0L)
+      averagePerSec.set(0.0)
+      topPerSec.set(0.0)
+    }
     case ComputeAverage() => {
-      val reqs = reqCounter.get()
-      averagePerSec.set((reqs - lastCount.get()).toDouble / Application.statsEvery.toSeconds.toDouble)
+      val requests = reqCounter.get()
+      averagePerSec.set((requests - lastCount.get()).toDouble / Application.statsEvery.toSeconds.toDouble)
       if (averagePerSec.get() > topPerSec.get()) topPerSec.set(averagePerSec.get())
-      lastCount.set(reqs)
+      lastCount.set(requests)
       Akka.system(Play.current).scheduler.scheduleOnce(Application.statsEvery, self, ComputeAverage())
     }
     case Hit(time) => {
