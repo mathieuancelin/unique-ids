@@ -1,7 +1,14 @@
 Unique IDs generator
 =====================================
 
-Produce ordered unique IDs (as 64 bits number). To use it, just run
+Produce ordered unique IDs (as 64 bits number). 
+
+To run the server, install Play 2.2.2 (http://downloads.typesafe.com/play/2.2.2/play-2.2.2.zip), and use the `play dist`
+command to generate a binary distribution of the server. 
+
+Then unzip it and run `sh ./bin/unique-ids -mem 64`
+
+To consume IDs, just use an HTTP client like 
 
 `curl http://hostname:port/nextId` or `curl http://hostname:port/nextId.json`
 
