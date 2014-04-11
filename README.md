@@ -4,7 +4,7 @@ Unique IDs generator
 Produce ordered unique IDs (as 64 bits number). 
 
 To run the server, install Play 2.2.2 (http://downloads.typesafe.com/play/2.2.2/play-2.2.2.zip), and use the `play dist`
-command to generate a binary distribution of the server. 
+command to generate a binary distribution of the server (will produce a `./target/universal/unique-ids-xxx.zip` file). 
 
 Then unzip it and run `sh ./bin/unique-ids -mem 64`
 
@@ -46,6 +46,6 @@ generator {
 ```
 
 
-Expect something like 2ms to 4ms response time per request and 8k to 10k request per second (with warm JVM)
+Expect something like `2ms` to `4ms` response time per request and `8k` to `10k` request per second (with a warm JVM)
 
 highly inspired by https://github.com/twitter/snowflake/
